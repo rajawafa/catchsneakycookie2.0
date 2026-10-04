@@ -5,18 +5,16 @@
   const PRIZE_THRESHOLD = 180;
   const PRIZE_TIERS = [
     {
-      // 200+ points: a guaranteed Set of 3.
+      // 200+ points: a guaranteed box of 3.
       minScore: 200,
-      prizes: [{ name: "SET OF 3", weight: 100 }]
+      prizes: [{ name: "BOX OF 3", weight: 100 }]
     },
     {
-      // 180–199 points: every eligible score receives one weighted prize.
+      // 180–199 points: one prize, with a 65/35 draw.
       minScore: 180,
       prizes: [
-        { name: "FREE 1 CLASSIC COOKIE", weight: 20 },
-        { name: "FREE 1 SNEAKY DROP", weight: 20 },
-        { name: "RM20 Voucher", weight: 30 },
-        { name: "RM10 Voucher", weight: 30 },
+        { name: "FREE 1 CLASSIC COOKIE", weight: 65 },
+        { name: "FREE 1 ENAMEL PIN", weight: 35 },
       ]
     }
   ];
@@ -349,8 +347,8 @@
     const width = bounds.width;
     const height = bounds.height;
     const size = Math.round(Math.min(width * .20, 80));
-    // Every cookie and strange item begins fully above the visible play area.
-    const startY = -size / 2 - 24;
+    // Start with the whole item above the top edge, then let it enter gradually.
+    const startY = -size / 2;
     let type = chooseItemType(band, elapsed);
     let x = size / 2 + 10 + Math.random() * Math.max(1, width - size - 20);
 
@@ -373,7 +371,8 @@
     itemsLayer.append(el);
 
     const baseSpeed = height * [.205, .26, .32, .39][band] * (type.hazard ? 1.30 : 1.15);
-    game.items.push({
+    const image = el.querySelector("img");
+    const item = {
       el,
       kind: type.kind,
       cookieCat: type.cookieCat,
@@ -382,8 +381,23 @@
       x,
       y: startY,
       size,
-      speed: baseSpeed * (.88 + Math.random() * .23)
-    });
+      speed: baseSpeed * (.88 + Math.random() * .23),
+      ready: !image,
+      dropAge: 0
+    };
+    game.items.push(item);
+    if (image) {
+      const onLoad = () => { item.ready = true; };
+      const onError = () => {
+        const index = game.items.indexOf(item);
+        if (index >= 0) removeItem(index);
+      };
+      image.addEventListener("load", onLoad, { once: true });
+      image.addEventListener("error", onError, { once: true });
+      if (image.complete) {
+        if (image.naturalWidth > 0) onLoad(); else onError();
+      }
+    }
   }
 
   function chooseItemType(band, elapsed) {
@@ -425,7 +439,11 @@
     const stageHeight = gameStage.clientHeight;
     for (let index = game.items.length - 1; index >= 0; index -= 1) {
       const item = game.items[index];
-      item.y += item.speed * delta;
+      if (!item.ready) continue;
+      item.dropAge += delta;
+      // Ease into view so the top edge reveals the item instead of a jump.
+      const entranceSpeed = Math.min(1, item.dropAge / .3);
+      item.y += item.speed * delta * entranceSpeed;
       item.el.style.transform = `translate3d(${item.x - item.size / 2}px, ${item.y - item.size / 2}px, 0)`;
 
       if (item.y - item.size / 2 > stageHeight + 25) {
