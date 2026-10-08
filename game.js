@@ -2,20 +2,17 @@
   "use strict";
 
   const ROUND_SECONDS = 30;
-  const PRIZE_THRESHOLD = 180;
   const PRIZE_TIERS = [
     {
-      // 200+ points: a guaranteed box of 3.
+      // 200+ points: a guaranteed enamel pin.
       minScore: 200,
-      prizes: [{ name: "BOX OF 3", weight: 100 }]
+      prizes: [{ name: "FREE 1 ENAMEL PIN", weight: 100 }]
     },
     {
-      // 180–199 points: one prize, with a 65/35 draw.
+      // 180–199 points: a guaranteed classic cookie.
       minScore: 180,
-      prizes: [
-        { name: "FREE 1 CLASSIC COOKIE", weight: 65 },
-        { name: "FREE 1 ENAMEL PIN", weight: 35 },
-      ]
+      maxScore: 199,
+      prizes: [{ name: "FREE 1 CLASSIC COOKIE", weight: 100 }]
     }
   ];
   const giftDialog = document.querySelector("#gift-dialog");
@@ -36,7 +33,7 @@
   });
 
   function prizeTierFor(score) {
-    return PRIZE_TIERS.find((tier) => score >= tier.minScore) || null;
+    return PRIZE_TIERS.find((tier) => score >= tier.minScore && (tier.maxScore === undefined || score <= tier.maxScore)) || null;
   }
 
   function drawPrize(prizes) {
@@ -570,7 +567,7 @@
     resultScore.textContent = String(game.score).padStart(3, "0");
     if (gameOver) playSound("gameover"); else playSound("timeup");
     showScreen("result");
-    if (game.score >= PRIZE_THRESHOLD) {
+    if (prizeTierFor(game.score)) {
       giftOpen.disabled = false;
       giftOpen.classList.remove("is-open");
       giftOpen.setAttribute("aria-label", "Open your gift");
